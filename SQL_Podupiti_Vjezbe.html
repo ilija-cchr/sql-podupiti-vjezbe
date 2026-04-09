@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL Podupiti – Interaktivne vježbe</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0d1b2a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #065a82 0%, #1c7293 100%);
+      padding: 1.4rem 2rem 1rem;
+      border-bottom: 3px solid #02c39a;
+    }
+    header h1 {
+      font-size: 1.55rem;
+      color: #fff;
+      letter-spacing: .5px;
+    }
+    header p {
+      color: #a8d8ea;
+      font-size: 0.88rem;
+      margin-top: .3rem;
+    }
+
+    /* ── SCHEMA BOX ── */
+    .schema-bar {
+      background: #11263a;
+      border-bottom: 1px solid #1c3a52;
+      padding: .7rem 2rem;
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .schema-label { color: #6bb8d6; font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+    .schema-table {
+      font-family: 'Consolas', monospace;
+      font-size: .82rem;
+      color: #cbd5e0;
+    }
+    .schema-table span { color: #02c39a; font-weight: 700; }
+    .schema-table .pk { color: #f6c90e; }
+
+    /* ── PROGRESS ── */
+    .progress-wrap {
+      padding: .85rem 2rem;
+      background: #0f2030;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .progress-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: #1c3a52;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #02c39a, #1c7293);
+      border-radius: 4px;
+      transition: width .5s ease;
+      width: 0%;
+    }
+    .progress-text { font-size: .82rem; color: #7fb3c8; white-space: nowrap; }
+
+    /* ── MAIN LAYOUT ── */
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 1.5rem 1.5rem 3rem;
+    }
+
+    /* ── TASK CARD ── */
+    .task-card {
+      background: #132338;
+      border: 1px solid #1c3a52;
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      transition: border-color .3s;
+    }
+    .task-card.solved  { border-color: #02c39a; }
+    .task-card.failed  { border-color: #e74c3c; }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: .9rem;
+      padding: .85rem 1.2rem;
+      background: #0e1e2f;
+      border-bottom: 1px solid #1c3a52;
+      cursor: pointer;
+      user-select: none;
+    }
+    .card-header:hover { background: #11263a; }
+
+    .task-num {
+      background: #065a82;
+      color: #fff;
+      font-weight: 700;
+      font-size: .8rem;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .task-card.solved .task-num { background: #02c39a; color: #0d1b2a; }
+
+    .task-title { font-size: 1rem; font-weight: 600; color: #e2e8f0; flex: 1; }
+
+    .stars { color: #f6c90e; font-size: .85rem; letter-spacing: 1px; }
+
+    .toggle-icon {
+      color: #6bb8d6;
+      font-size: 1.1rem;
+      transition: transform .3s;
+    }
+    .task-card.open .toggle-icon { transform: rotate(180deg); }
+
+    .card-body {
+      display: none;
+      padding: 1.2rem;
+    }
+    .task-card.open .card-body { display: block; }
+
+    /* ── SCENARIO TEXT ── */
+    .scenario {
+      background: #0e1e2f;
+      border-left: 3px solid #1c7293;
+      padding: .7rem 1rem;
+      border-radius: 0 6px 6px 0;
+      font-size: .9rem;
+      color: #cbd5e0;
+      margin-bottom: 1rem;
+      line-height: 1.55;
+    }
+    .scenario strong { color: #6bb8d6; }
+
+    /* ── HINT BOX ── */
+    .hint-box {
+      background: #0e2030;
+      border: 1px dashed #065a82;
+      border-radius: 6px;
+      padding: .7rem 1rem;
+      font-size: .88rem;
+      color: #7fb3c8;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .hint-box.visible { display: block; }
+    .hint-box code { background: #1a3550; padding: 1px 5px; border-radius: 3px; color: #02c39a; font-family: 'Consolas', monospace; }
+
+    /* ── SQL EDITOR ── */
+    textarea.sql-input {
+      width: 100%;
+      background: #0a1520;
+      border: 1px solid #1c3a52;
+      border-radius: 6px;
+      color: #a8d8ea;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: .92rem;
+      padding: .8rem 1rem;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color .2s;
+      line-height: 1.5;
+    }
+    textarea.sql-input:focus { border-color: #065a82; }
+
+    /* ── BUTTONS ── */
+    .btn-row {
+      display: flex;
+      gap: .6rem;
+      margin-top: .8rem;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: .5rem 1.1rem;
+      border: none;
+      border-radius: 5px;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    button:hover { opacity: .88; }
+    button:active { transform: scale(.97); }
+
+    .btn-run    { background: #065a82; color: #fff; }
+    .btn-hint   { background: #1c3a52; color: #7fb3c8; }
+    .btn-check  { background: #02c39a; color: #0d1b2a; }
+    .btn-reset  { background: #2d3748; color: #cbd5e0; font-size: .8rem; }
+
+    /* ── RESULTS ── */
+    .result-area {
+      margin-top: .9rem;
+    }
+
+    .result-msg {
+      padding: .55rem 1rem;
+      border-radius: 5px;
+      font-size: .88rem;
+      font-weight: 600;
+      margin-bottom: .6rem;
+      display: none;
+    }
+    .result-msg.success { background: #0a3028; color: #02c39a; border: 1px solid #02c39a; display: block; }
+    .result-msg.error   { background: #2d0a0a; color: #fc8181; border: 1px solid #c53030; display: block; }
+    .result-msg.correct { background: #0a3028; color: #48bb78; border: 1px solid #48bb78; display: block; }
+    .result-msg.wrong   { background: #2d1a00; color: #f6ad55; border: 1px solid #c05621; display: block; }
+
+    .result-table-wrap {
+      overflow-x: auto;
+      border-radius: 6px;
+      border: 1px solid #1c3a52;
+    }
+    table.result-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+    }
+    table.result-table th {
+      background: #0e2030;
+      color: #6bb8d6;
+      padding: .45rem .8rem;
+      text-align: left;
+      border-bottom: 1px solid #1c3a52;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: .75rem;
+      letter-spacing: .5px;
+    }
+    table.result-table td {
+      padding: .4rem .8rem;
+      border-bottom: 1px solid #0e1e2f;
+      color: #cbd5e0;
+    }
+    table.result-table tr:last-child td { border-bottom: none; }
+    table.result-table tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+
+    .row-count {
+      font-size: .78rem;
+      color: #4a6980;
+      margin-top: .4rem;
+    }
+
+    /* ── SECTION DIVIDER ── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.8rem 0 1.2rem;
+    }
+    .section-divider span {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #4a6980;
+      white-space: nowrap;
+    }
+    .section-divider::before,
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #1c3a52;
+    }
+
+    /* ── SCOREBOARD ── */
+    #scoreboard {
+      background: #0e2030;
+      border: 1px solid #065a82;
+      border-radius: 8px;
+      padding: 1rem 1.4rem;
+      margin-top: 2rem;
+      font-size: .88rem;
+      color: #7fb3c8;
+    }
+    #scoreboard h3 { color: #02c39a; margin-bottom: .5rem; font-size: 1rem; }
+
+    /* ── DB PREVIEW ── */
+    details.db-preview {
+      background: #0e1e2f;
+      border: 1px solid #1c3a52;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    details.db-preview summary {
+      padding: .75rem 1.2rem;
+      cursor: pointer;
+      color: #6bb8d6;
+      font-size: .88rem;
+      font-weight: 600;
+      user-select: none;
+    }
+    details.db-preview summary:hover { color: #a8d8ea; }
+    .db-tables {
+      display: flex;
+      gap: 1.5rem;
+      padding: .8rem 1.2rem 1rem;
+      flex-wrap: wrap;
+    }
+    .db-table-box { flex: 1; min-width: 220px; overflow-x: auto; }
+    .db-table-box table.result-table th,
+    .db-table-box table.result-table td { padding: .35rem .45rem; font-size: .8rem; white-space: nowrap; }
+    .db-table-box h4 {
+      font-family: 'Consolas', monospace;
+      color: #02c39a;
+      font-size: .88rem;
+      margin-bottom: .5rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🗄️ SQL Podupiti – Interaktivne vježbe</h1>
+  <p>Dizajn baza podataka · 3. razred · Školska godina 2025./2026.</p>
+</header>
+
+<div class="schema-bar">
+  <div class="schema-label">Shema:</div>
+  <div class="schema-table">
+    <span>Knjige</span>(<span class="pk">knjiga_id</span>, naslov, autor, cijena, zanr, godina)
+  </div>
+  <div class="schema-table">
+    <span>Narudzbe</span>(<span class="pk">narudzba_id</span>, <span style="color:#f6c90e">knjiga_id</span>, kupac, kolicina, datum_narudzbe)
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+  <div class="progress-text" id="progressText">0 / 7 zadataka riješeno</div>
+</div>
+
+<div class="container">
+
+  <!-- DB PREVIEW -->
+  <details class="db-preview" id="dbPreview">
+    <summary>📋 Prikaži podatke u tablicama (klikni za otvaranje)</summary>
+    <div class="db-tables" id="dbTablesContent">
+      <div class="db-table-box">
+        <h4>Knjige</h4>
+        <div id="previewKnjige"><em style="color:#4a6980;font-size:.8rem">Učitavanje...</em></div>
+      </div>
+      <div class="db-table-box">
+        <h4>Narudzbe</h4>
+        <div id="previewNarudzbe"><em style="color:#4a6980;font-size:.8rem">Učitavanje...</em></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ═══════════════════════════════════════════
+       DIO 1 – PONAVLJANJE (Zadaci 1–3)
+  ═══════════════════════════════════════════ -->
+  <div class="section-divider"><span>📚 Dio 1 – Ponavljanje (zagrijavanje)</span></div>
+
+  <!-- TASK 1 -->
+  <div class="task-card" id="card-1">
+    <div class="card-header" onclick="toggleCard(1)">
+      <div class="task-num">1</div>
+      <div class="task-title">Prikaz knjiga sortiranih po cijeni (od skuplje prema jeftinijoj)</div>
+      <div class="stars">⭐</div>
+      <div class="toggle-icon">▼</div>
+    </div>
+    <div class="card-body">
+      <div class="scenario">
+        Dohvati stupce <strong>naslov</strong> i <strong>cijena</strong> iz tablice <strong>Knjige</strong>.<br>
+        Sortiraj rezultate po cijeni od <strong>najveće prema najmanjoj</strong>.
+      </div>
+      <textarea class="sql-input" id="sql-1" rows="3">SELECT naslov, cijena
+FROM Knjige
+ORDER BY ________ ________;</textarea>
+      <div class="btn-row">
+        <button class="btn-run"   onclick="runSQL(1)">▶ Pokreni</button>
+        <button class="btn-hint"  onclick="toggleHint(1)">💡 Savjet</button>
+        <button class="btn-check" onclick="checkAnswer(1)">✔ Provjeri odgovor</button>
+        <button class="btn-reset" onclick="resetSQL(1)">↺ Reset</button>
+      </div>
+      <div class="hint-box" id="hint-1">
+        Klauzula <code>ORDER BY</code> sortira rezultate. Za silazni redoslijed koristimo ključnu riječ <code>DESC</code> (descending = silazno).<br>
+        Sintaksa: <code>ORDER BY naziv_stupca DESC</code>
+      </div>
+      <div class="result-area" id="result-1"></div>
+    </div>
+  </div>
+
+  <!-- TASK 2 -->
+  <div class="task-card" id="card-2">
+    <div class="card-header" onclick="toggleCard(2)">
+      <div class="task-num">2</div>
+      <div class="task-title">Knjige skuplje od 20 eura</div>
+      <div class="stars">⭐</div>
+      <div class="toggle-icon">▼</div>
+    </div>
+    <div class="card-body">
+      <div class="scenario">
+        Dohvati stupce <strong>naslov</strong> i <strong>cijena</strong> iz tablice <strong>Knjige</strong>.<br>
+        Prikaži samo knjige čija je cijena <strong>veća od 20 eura</strong>.
+      </div>
+      <textarea class="sql-input" id="sql-2" rows="3">SELECT naslov, cijena
+FROM Knjige
+WHERE ________ > ________;</textarea>
+      <div class="btn-row">
+        <button class="btn-run"   onclick="runSQL(2)">▶ Pokreni</button>
+        <button class="btn-hint"  onclick="toggleHint(2)">💡 Savjet</button>
+        <button class="btn-check" onclick="checkAnswer(2)">✔ Provjeri odgovor</button>
+        <button class="btn-reset" onclick="resetSQL(2)">↺ Reset</button>
+      </div>
+      <div class="hint-box" id="hint-2">
+        Klauzula <code>WHERE</code> filtrira retke prema uvjetu.<br>
+        Sintaksa: <code>WHERE naziv_stupca &gt; vrijednost</code><br>
+        Koji stupac sadrži cijenu? → <code>cijena</code>
+      </div>
+      <div class="result-area" id="result-2"></div>
+    </div>
+  </div>
+
+  <!-- TASK 3 -->
+  <div class="task-card" id="card-3">
+    <div class="card-header" onclick="toggleCard(3)">
+      <div class="task-num">3</div>
+      <div class="task-title">Izračunaj prosječnu cijenu svih knjiga</div>
+      <div class="stars">⭐</div>
+      <div class="toggle-icon">▼</div>
+    </div>
+    <div class="card-body">
+      <div class="scenario">
+        Izračunaj <strong>prosječnu cijenu</strong> svih knjiga u tablici <strong>Knjige</strong>.<br>
+        Rezultat nazovi <strong>prosjecna_cijena</strong> (koristi <code>AS</code>).
+      </div>
+      <textarea class="sql-input" id="sql-3" rows="3">SELECT ________(cijena) AS prosjecna_cijena
+FROM Knjige;</textarea>
+      <div class="btn-row">
+        <button class="btn-run"   onclick="runSQL(3)">▶ Pokreni</button>
+        <button class="btn-hint"  onclick="toggleHint(3)">💡 Savjet</button>
+        <button class="btn-check" onclick="checkAnswer(3)">✔ Provjeri odgovor</button>
+        <button class="btn-reset" onclick="resetSQL(3)">↺ Reset</button>
+      </div>
+      <div class="hint-box" id="hint-3">
+        Agregatna funkcija za <strong>prosjek</strong> zove se <code>AVG()</code>.<br>
+        Sintaksa: <code>SELECT AVG(naziv_stupca) AS alias FROM tablica</code>
+      </div>
+      <div class="result-area" id="result-3"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       DIO 2 – PODUPITI (Zadaci 4–6)
+  ═══════════════════════════════════════════ -->
+  <div class="section-divider"><span>🔍 Dio 2 – Podupiti (novi sadržaj)</span></div>
+
+  <!-- TASK 4 -->
+  <div class="task-card" id="card-4">
+    <div class="card-header" onclick="toggleCard(4)">
+      <div class="task-num">4</div>
+      <div class="task-title">Knjige skuplje od prosjeka (podupit u WHERE)</div>
+      <div class="stars">⭐⭐</div>
+      <div class="toggle-icon">▼</div>
+    </div>
+    <div class="card-body">
+      <div class="scenario">
+        Dohvati <strong>naslov</strong> i <strong>cijena</strong> knjiga čija je cijena <strong>veća od prosječne cijene</strong> svih knjiga.<br>
+        <strong>Nemojte</strong> ručno upisivati broj nego koristite podupit koji izračuna prosjek<br>
+        Sortiraj po cijeni silazno.
+      </div>
+      <textarea class="sql-input" id="sql-4" rows="4">SELECT naslov, cijena
+FROM Knjige
+WHERE cijena > (SELECT ________(________) FROM ________)
+ORDER BY cijena DESC;</textarea>
+      <div class="btn-row">
+        <button class="btn-run"   onclick="runSQL(4)">▶ Pokreni</button>
+        <button class="btn-hint"  onclick="toggleHint(4)">💡 Savjet</button>
+        <button class="btn-check" onclick="checkAnswer(4)">✔ Provjeri odgovor</button>
+        <button class="btn-reset" onclick="resetSQL(4)">↺ Reset</button>
+      </div>
+      <div class="hint-box" id="hint-4">
+        Podupit je SELECT naredba unutar zagrada: <code>(SELECT AVG(...) FROM ...)</code><br>
+        SQL Server <strong>prvo</strong> izvrši podupit → dobije jedan broj (prosjek) → zatim usporedi cijenu svake knjige s tim brojem.<br>
+        Podupit: <code>(SELECT AVG(cijena) FROM Knjige)</code>
+      </div>
+      <div class="result-area" id="result-4"></div>
+    </div>
+  </div>
+
+  <!-- TASK 5 -->
+  <div class="task-card" id="card-5">
+    <div class="card-header" onclick="toggleCard(5)">
+      <div class="task-num">5</div>
+      <div class="task-title">Knjige koje su naručene (podupit s IN)</div>
+      <div class="stars">⭐⭐</div>
+      <div class="toggle-icon">▼</div>
+    </div>
+    <div class="card-body">
+      <div class="scenario">
+        Prikaži <strong>naslov</strong> i <strong>autor</strong> samo onih knjiga koje se <strong>nalaze u tablici Narudzbe</strong>.<br>
+        Koristite podupit s operatorom <code>IN</code> koji dohvaća <strong>knjiga_id</strong> iz tablice Narudzbe.
+      </div>
+      <textarea class="sql-input" id="sql-5" rows="4">SELECT naslov, autor
+FROM Knjige
+WHERE knjiga_id ________ (SELECT ________ FROM Narudzbe);</textarea>
+      <div class="btn-row">
+        <button class="btn-run"   onclick="runSQL(5)">▶ Pokreni</button>
+        <button class="btn-hint"  onclick="toggleHint(5)">💡 Savjet</button>
+        <button class="btn-check" onclick="checkAnswer(5)">✔ Provjeri odgovor</button>
+        <button class="btn-reset" onclick="resetSQL(5)">↺ Reset</button>
+      </div>
+      <div class="hint-box" id="hint-5">
+        Operator <code>IN</code> provjerava je li vrijednost unutar skupa vrijednosti.<br>
+        Sintaksa: <code>WHERE stupac IN (SELECT drugi_stupac FROM druga_tablica)</code><br>
+        Podupit vraća <strong>popis knjiga_id</strong> koje postoje u narudžbama.
+      </div>
+      <div class="result-area" id="result-5"></div>
+    </div>
+  </div>
+
+  <!-- TASK 6 -->
+  <div class="task-card" id="card-6">
+    <div class="card-header" onclick="toggleCard(6)">
+      <div class="task-num">6</div>
+      <div class="task-title">Knjige koje NISU naručene (podupit s NOT IN)</div>
+      <div class="stars">⭐⭐</div>
+      <div class="toggle-icon">▼</div>
+    </div>
+    <div class="card-body">
+      <div class="scenario">
+        Prikaži <strong>naslov</strong> i <strong>zanr</strong> knjiga koje se <strong>ne nalaze ni u jednoj narudžbi</strong>.<br>
+        Koristite podupit s operatorom <code>NOT IN</code>.
+      </div>
+      <textarea class="sql-input" id="sql-6" rows="4">SELECT naslov, zanr
+FROM Knjige
+WHERE knjiga_id ________ ________ (SELECT knjiga_id FROM Narudzbe);</textarea>
+      <div class="btn-row">
+        <button class="btn-run"   onclick="runSQL(6)">▶ Pokreni</button>
+        <button class="btn-hint"  onclick="toggleHint(6)">💡 Savjet</button>
+        <button class="btn-check" onclick="checkAnswer(6)">✔ Provjeri odgovor</button>
+        <button class="btn-reset" onclick="resetSQL(6)">↺ Reset</button>
+      </div>
+      <div class="hint-box" id="hint-6">
+        <code>NOT IN</code> vraća retke čija vrijednost <strong>nije</strong> u skupu.<br>
+        Sintaksa: <code>WHERE stupac NOT IN (podupit)</code><br>
+        Ovo je suprotno od zadatka 5 – tražimo knjige koje <em>nisu</em> naručene.
+      </div>
+      <div class="result-area" id="result-6"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       DIO 3 – IZAZOV (Zadatak 7)
+  ═══════════════════════════════════════════ -->
+  <div class="section-divider"><span>🏆 Dio 3 – Izazov</span></div>
+
+  <!-- TASK 7 -->
+  <div class="task-card" id="card-7">
+    <div class="card-header" onclick="toggleCard(7)">
+      <div class="task-num">7</div>
+      <div class="task-title">Kupac s najvećom narudžbom (podupit s MAX)</div>
+      <div class="stars">⭐⭐⭐</div>
+      <div class="toggle-icon">▼</div>
+    </div>
+    <div class="card-body">
+      <div class="scenario">
+        Iz tablice <strong>Narudzbe</strong> dohvati <strong>kupac</strong>, <strong>kolicina</strong> i <strong>datum_narudzbe</strong> za narudžbu u kojoj je naručena <strong>najveća količina</strong> knjiga.<br>
+        Koristite podupit koji pronalazi maksimalnu količinu.
+      </div>
+      <textarea class="sql-input" id="sql-7" rows="4">SELECT kupac, kolicina, datum_narudzbe
+FROM Narudzbe
+WHERE kolicina = (SELECT ________(________) FROM ________);</textarea>
+      <div class="btn-row">
+        <button class="btn-run"   onclick="runSQL(7)">▶ Pokreni</button>
+        <button class="btn-hint"  onclick="toggleHint(7)">💡 Savjet</button>
+        <button class="btn-check" onclick="checkAnswer(7)">✔ Provjeri odgovor</button>
+        <button class="btn-reset" onclick="resetSQL(7)">↺ Reset</button>
+      </div>
+      <div class="hint-box" id="hint-7">
+        Agregatna funkcija za <strong>maksimum</strong> je <code>MAX()</code>.<br>
+        Podupit: <code>(SELECT MAX(kolicina) FROM Narudzbe)</code><br>
+        Vanjski upit filtrira retke gdje je kolicina jednaka tom maksimumu.
+      </div>
+      <div class="result-area" id="result-7"></div>
+    </div>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div id="scoreboard">
+    <h3>📊 Rezultati</h3>
+    <div id="scoreDetails">Rješavaj zadatke i klikni "Provjeri odgovor" za bodove.</div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- sql.js via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════════════
+let db = null;
+const TOTAL_TASKS = 7;
+const solved = {};   // { taskId: true }
+
+// ── Starter SQL for each task (for reset button) ──
+const STARTERS = {
+  1: `SELECT naslov, cijena\nFROM Knjige\nORDER BY ________ ________;`,
+  2: `SELECT naslov, cijena\nFROM Knjige\nWHERE ________ > ________;`,
+  3: `SELECT ________(cijena) AS prosjecna_cijena\nFROM Knjige;`,
+  4: `SELECT naslov, cijena\nFROM Knjige\nWHERE cijena > (SELECT ________(________) FROM ________)\nORDER BY cijena DESC;`,
+  5: `SELECT naslov, autor\nFROM Knjige\nWHERE knjiga_id ________ (SELECT ________ FROM Narudzbe);`,
+  6: `SELECT naslov, zanr\nFROM Knjige\nWHERE knjiga_id ________ ________ (SELECT knjiga_id FROM Narudzbe);`,
+  7: `SELECT kupac, kolicina, datum_narudzbe\nFROM Narudzbe\nWHERE kolicina = (SELECT ________(________) FROM ________);`
+};
+
+// ── Encoded answers ──
+const _E = {
+  1: 'U0VMRUNUIG5hc2xvdiwgY2lqZW5hIEZST00gS25qaWdlIE9SREVSIEJZIGNpamVuYSBERVND',
+  2: 'U0VMRUNUIG5hc2xvdiwgY2lqZW5hIEZST00gS25qaWdlIFdIRVJFIGNpamVuYSA+IDIw',
+  3: 'U0VMRUNUIEFWRyhjaWplbmEpIEFTIHByb3NqZWNuYV9jaWplbmEgRlJPTSBLbmppZ2U=',
+  4: 'U0VMRUNUIG5hc2xvdiwgY2lqZW5hIEZST00gS25qaWdlIFdIRVJFIGNpamVuYSA+IChTRUxFQ1QgQVZHKGNpamVuYSkgRlJPTSBLbmppZ2UpIE9SREVSIEJZIGNpamVuYSBERVND',
+  5: 'U0VMRUNUIG5hc2xvdiwgYXV0b3IgRlJPTSBLbmppZ2UgV0hFUkUga25qaWdhX2lkIElOIChTRUxFQ1Qga25qaWdhX2lkIEZST00gTmFydWR6YmUp',
+  6: 'U0VMRUNUIG5hc2xvdiwgemFuciBGUk9NIEtuamlnZSBXSEVSRSBrbmppZ2FfaWQgTk9UIElOIChTRUxFQ1Qga25qaWdhX2lkIEZST00gTmFydWR6YmUp',
+  7: 'U0VMRUNUIGt1cGFjLCBrb2xpY2luYSwgZGF0dW1fbmFydWR6YmUgRlJPTSBOYXJ1ZHpiZSBXSEVSRSBrb2xpY2luYSA9IChTRUxFQ1QgTUFYKGtvbGljaW5hKSBGUk9NIE5hcnVkemJlKQ=='
+};
+const CANONICAL = Object.fromEntries(Object.entries(_E).map(([k,v]) => [k, atob(v)]));
+
+// ═══════════════════════════════════════════════════════
+//  DB INIT
+// ═══════════════════════════════════════════════════════
+async function initDB() {
+  const SQL = await initSqlJs({
+    locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
+  });
+  db = new SQL.Database();
+
+  db.run(`
+    CREATE TABLE Knjige (
+      knjiga_id INTEGER PRIMARY KEY,
+      naslov    TEXT,
+      autor     TEXT,
+      cijena    REAL,
+      zanr      TEXT,
+      godina    INTEGER
+    );
+    INSERT INTO Knjige VALUES
+      (1, 'SQL za svakoga',          'Ana Kovač',     28.00, 'Tehnika',    2021),
+      (2, 'Baze podataka u praksi',  'Ivan Horvat',   32.50, 'Tehnika',    2020),
+      (3, 'Priče iz davnine',        'Ivana Brlić',   12.00, 'Roman',      2019),
+      (4, 'Mala knjiga o svemiru',   'Maja Perić',    15.50, 'Popularna',  2022),
+      (5, 'Python i ja',             'Luka Vuković',  25.00, 'Tehnika',    2023),
+      (6, 'Kratke priče',            'Ante Jurić',    10.00, 'Roman',      2018),
+      (7, 'Web dizajn od nule',      'Sara Blažević', 30.00, 'Tehnika',    2022),
+      (8, 'Filozofija svakodnevlja', 'Pero Matić',    18.00, 'Filozofija', 2020);
+
+    CREATE TABLE Narudzbe (
+      narudzba_id     INTEGER PRIMARY KEY,
+      knjiga_id       INTEGER,
+      kupac           TEXT,
+      kolicina        INTEGER,
+      datum_narudzbe  TEXT
+    );
+    INSERT INTO Narudzbe VALUES
+      (1, 1, 'Marko Novak',   3, '2024-09-10'),
+      (2, 2, 'Petra Lučić',   5, '2024-09-15'),
+      (3, 5, 'Ivan Kolar',    2, '2024-10-01'),
+      (4, 7, 'Ana Župan',     4, '2024-10-12'),
+      (5, 1, 'Tina Babić',    1, '2024-11-03');
+  `);
+
+  // Fill the preview tables
+  renderPreview('Knjige',  'previewKnjige');
+  renderPreview('Narudzbe','previewNarudzbe');
+
+  // Open first card
+  toggleCard(1);
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS – render SQL result
+// ═══════════════════════════════════════════════════════
+function execSQL(sql) {
+  /** Returns { columns, rows } or throws */
+  const results = db.exec(sql.trim());
+  if (!results.length) return { columns: [], rows: [] };
+  return { columns: results[0].columns, rows: results[0].values };
+}
+
+function buildTable(columns, rows) {
+  if (!columns.length) return `<p style="color:#4a6980;font-size:.85rem">Upit nije vratio retke.</p>`;
+  let html = `<div class="result-table-wrap"><table class="result-table"><thead><tr>`;
+  columns.forEach(c => html += `<th>${esc(c)}</th>`);
+  html += `</tr></thead><tbody>`;
+  rows.forEach(r => {
+    html += `<tr>`;
+    r.forEach(v => html += `<td>${v === null ? '<em style="color:#4a6980">NULL</em>' : esc(String(v))}</td>`);
+    html += `</tr>`;
+  });
+  html += `</tbody></table></div>`;
+  html += `<p class="row-count">${rows.length} red${rows.length === 1 ? '' : rows.length < 5 ? 'a' : 'ova'} pronađeno.</p>`;
+  return html;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderPreview(table, containerId) {
+  try {
+    const { columns, rows } = execSQL(`SELECT * FROM ${table}`);
+    document.getElementById(containerId).innerHTML = buildTable(columns, rows);
+  } catch(e) {
+    document.getElementById(containerId).innerHTML = `<span style="color:#fc8181">${e.message}</span>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CARD TOGGLE
+// ═══════════════════════════════════════════════════════
+function toggleCard(id) {
+  const card = document.getElementById(`card-${id}`);
+  card.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════
+//  HINT TOGGLE
+// ═══════════════════════════════════════════════════════
+function toggleHint(id) {
+  document.getElementById(`hint-${id}`).classList.toggle('visible');
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESET
+// ═══════════════════════════════════════════════════════
+function resetSQL(id) {
+  document.getElementById(`sql-${id}`).value = STARTERS[id];
+  document.getElementById(`result-${id}`).innerHTML = '';
+  const card = document.getElementById(`card-${id}`);
+  card.classList.remove('solved','failed');
+}
+
+// ═══════════════════════════════════════════════════════
+//  RUN SQL (without checking correctness)
+// ═══════════════════════════════════════════════════════
+function runSQL(id) {
+  if (!db) return;
+  const sql = document.getElementById(`sql-${id}`).value;
+  const area = document.getElementById(`result-${id}`);
+
+  // Check for unfilled blanks
+  if (sql.includes('________')) {
+    area.innerHTML = `<div class="result-msg error">⚠️ Zamijeni sve ________ s ispravnim SQL-om prije pokretanja.</div>`;
+    return;
+  }
+
+  try {
+    const { columns, rows } = execSQL(sql);
+    area.innerHTML = `<div class="result-msg success">✓ Upit uspješno izvršen.</div>` + buildTable(columns, rows);
+  } catch(e) {
+    area.innerHTML = `<div class="result-msg error">❌ Greška: ${esc(e.message)}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHECK ANSWER  (compare result sets)
+// ═══════════════════════════════════════════════════════
+function checkAnswer(id) {
+  if (!db) return;
+  const sql = document.getElementById(`sql-${id}`).value;
+  const area = document.getElementById(`result-${id}`);
+  const card = document.getElementById(`card-${id}`);
+
+  if (sql.includes('________')) {
+    area.innerHTML = `<div class="result-msg error">⚠️ Zamijeni sve ________ s ispravnim SQL-om.</div>`;
+    return;
+  }
+
+  // Get student result
+  let studentResult;
+  try {
+    studentResult = execSQL(sql);
+  } catch(e) {
+    area.innerHTML = `<div class="result-msg error">❌ Greška u SQL-u: ${esc(e.message)}</div>`;
+    card.classList.remove('solved'); card.classList.add('failed');
+    return;
+  }
+
+  // Get expected result
+  const expectedResult = execSQL(CANONICAL[id]);
+
+  // Compare row count
+  if (studentResult.rows.length !== expectedResult.rows.length) {
+    const diff = expectedResult.rows.length;
+    area.innerHTML =
+      `<div class="result-msg wrong">❌ Netočno – tvoj upit vratio ${studentResult.rows.length} redak/redaka, a točan odgovor ima ${diff}. Provjeri uvjet.</div>` +
+      buildTable(studentResult.columns, studentResult.rows);
+    card.classList.remove('solved'); card.classList.add('failed');
+    updateProgress();
+    return;
+  }
+
+  // Compare values (sort both to be order-agnostic for tasks 5 and 6)
+  const sortRows = rows => rows.map(r => r.map(v => v === null ? '' : String(v)).join('|')).sort();
+  const studentStr = sortRows(studentResult.rows).join('\n');
+  const expectedStr = sortRows(expectedResult.rows).join('\n');
+
+  if (studentStr === expectedStr) {
+    solved[id] = true;
+    card.classList.remove('failed'); card.classList.add('solved');
+    area.innerHTML =
+      `<div class="result-msg correct">✅ Točno! Odlično – podupit radi ispravno.</div>` +
+      buildTable(studentResult.columns, studentResult.rows);
+  } else {
+    card.classList.remove('solved'); card.classList.add('failed');
+    area.innerHTML =
+      `<div class="result-msg wrong">❌ Netočno – podaci se ne podudaraju. Provjeri uvjet.</div>` +
+      buildTable(studentResult.columns, studentResult.rows);
+  }
+  updateProgress();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROGRESS
+// ═══════════════════════════════════════════════════════
+function updateProgress() {
+  const count = Object.keys(solved).length;
+  const pct   = Math.round(count / TOTAL_TASKS * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${count} / ${TOTAL_TASKS} zadataka riješeno`;
+
+  const details = document.getElementById('scoreDetails');
+  if (count === 0) {
+    details.textContent = 'Rješavaj zadatke i klikni "Provjeri odgovor" za bodove.';
+  } else if (count < 3) {
+    details.textContent = `Riješio/la si ${count} zadatak/zadataka. Nastavi, zagrijavanje još traje!`;
+  } else if (count < 6) {
+    details.textContent = `Odlično napredovanje! ${count}/7 – podupiti ti idu!`;
+  } else if (count < 7) {
+    details.textContent = `Super! ${count}/7 – samo još izazov!`;
+  } else {
+    details.innerHTML = `🏆 <strong style="color:#02c39a">Sve riješeno! Izvrsno!</strong> Pozovi nastavnicu da provjeri tvoj rad.`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  initDB().catch(err => {
+    document.body.innerHTML = `<div style="padding:2rem;color:#fc8181">
+      Greška pri učitavanju sql.js baze: ${err.message}<br>
+      Provjeri internetsku vezu ili pokušaj osvježiti stranicu.
+    </div>`;
+  });
+});
+</script>
+</body>
+</html>
