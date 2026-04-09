@@ -290,6 +290,21 @@
     }
     #scoreboard h3 { color: #02c39a; margin-bottom: .5rem; font-size: 1rem; }
 
+    .btn-export {
+      margin-top: .8rem;
+      padding: .55rem 1.3rem;
+      background: linear-gradient(135deg, #065a82, #1c7293);
+      color: #fff;
+      border: 1px solid #02c39a;
+      border-radius: 6px;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn-export:hover { opacity: .85; }
+    .btn-export:active { transform: scale(.97); }
+
     /* ── DB PREVIEW ── */
     details.db-preview {
       background: #0e1e2f;
@@ -599,6 +614,7 @@ WHERE kolicina = (SELECT ________(________) FROM ________);</textarea>
   <div id="scoreboard">
     <h3>📊 Rezultati</h3>
     <div id="scoreDetails">Rješavaj zadatke i klikni "Provjeri odgovor" za bodove.</div>
+    <button class="btn-export" id="btnExport" onclick="exportReport()">📄 Izvezi izvještaj (za predaju)</button>
   </div>
 
 </div><!-- /container -->
@@ -851,6 +867,70 @@ function updateProgress() {
   } else {
     details.innerHTML = `🏆 <strong style="color:#02c39a">Sve riješeno! Izvrsno!</strong> Pozovi nastavnicu da provjeri tvoj rad.`;
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXPORT REPORT
+// ═══════════════════════════════════════════════════════
+function exportReport() {
+  const name = prompt('Upiši svoje ime i prezime:');
+  if (!name || !name.trim()) return;
+  const studentName = name.trim();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('hr-HR') + ' ' + now.toLocaleTimeString('hr-HR', {hour:'2-digit',minute:'2-digit'});
+  const count = Object.keys(solved).length;
+
+  const taskTitles = {
+    1: 'Prikaz knjiga sortiranih po cijeni',
+    2: 'Knjige skuplje od 20 eura',
+    3: 'Prosječna cijena svih knjiga',
+    4: 'Knjige skuplje od prosjeka (podupit u WHERE)',
+    5: 'Knjige koje su naručene (podupit s IN)',
+    6: 'Knjige koje NISU naručene (NOT IN)',
+    7: 'Kupac s najvećom narudžbom (podupit s MAX)'
+  };
+
+  let tasksHtml = '';
+  for (let i = 1; i <= TOTAL_TASKS; i++) {
+    const isSolved = !!solved[i];
+    const sql = document.getElementById(`sql-${i}`).value.trim();
+    const status = isSolved ? '✅ Riješeno' : '❌ Neriješeno';
+    const borderColor = isSolved ? '#02c39a' : '#e74c3c';
+    tasksHtml += `
+      <div style="border-left:4px solid ${borderColor};background:#f8f9fa;padding:.7rem 1rem;margin-bottom:.8rem;border-radius:0 6px 6px 0;">
+        <div style="font-weight:700;margin-bottom:.3rem;color:#1a202c;">Zadatak ${i}: ${taskTitles[i]} &nbsp; ${status}</div>
+        <pre style="background:#1a202c;color:#a8d8ea;padding:.6rem .8rem;border-radius:5px;font-size:.85rem;overflow-x:auto;white-space:pre-wrap;">${sql.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+      </div>`;
+  }
+
+  const reportHtml = `<!DOCTYPE html>
+<html lang="hr"><head><meta charset="UTF-8"><title>SQL Podupiti – Izvještaj</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:0 auto;padding:2rem;color:#1a202c;}
+  h1{font-size:1.3rem;border-bottom:2px solid #065a82;padding-bottom:.5rem;color:#065a82;}
+  .meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin:1rem 0;padding:.6rem 1rem;background:#e8f4f8;border-radius:6px;font-size:.9rem;}
+  .score{font-size:1.1rem;font-weight:700;color:#065a82;margin:1rem 0;}
+  @media print{body{padding:.5rem;}}
+</style></head><body>
+<h1>🗄️ SQL Podupiti – Izvještaj rada</h1>
+<div class="meta">
+  <div><strong>Učenik/ica:</strong> ${studentName.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+  <div><strong>Datum:</strong> ${dateStr}</div>
+</div>
+<div class="score">Rezultat: ${count} / ${TOTAL_TASKS} zadataka riješeno (${Math.round(count/TOTAL_TASKS*100)}%)</div>
+${tasksHtml}
+<p style="margin-top:1.5rem;font-size:.78rem;color:#718096;">Generirano automatski iz SQL Podupiti vježbi · Dizajn baza podataka · 2025./2026.</p>
+</body></html>`;
+
+  const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `SQL_Podupiti_${studentName.replace(/\s+/g, '_')}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════════════════
